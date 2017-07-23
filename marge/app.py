@@ -6,6 +6,7 @@ import argparse
 import contextlib
 import logging
 import os
+import re
 import sys
 import tempfile
 
@@ -63,9 +64,20 @@ def _parse_args(args):
         action='store_true',
         help='marge pushes effectively don\'t change approval status',
     )
+    arg(
+        '--project-regexp',
+        default='.*',
+        help="Only process projects that match; e.g. 'some_group/.*' or '(?!exclude/me)'",
+    )
     arg('--debug', action='store_true', help='Debug logging (includes all HTTP requests etc.)')
 
-    return parser.parse_args(args)
+    options = parser.parse_args(args)
+    try:
+        options.project_regexp = re.compile(options.project_regexp)
+    except re.error as err:
+        print('ERROR: Invalid regexp: %r (%s)' % options.regexp, err.msg, file=sys.stderr)
+        sys.exit(1)
+    return options
 
 
 @contextlib.contextmanager
@@ -106,6 +118,7 @@ def main(args=sys.argv[1:]):
             add_reviewers=options.add_reviewers,
             add_tested=options.add_tested,
             impersonate_approvers=options.impersonate_approvers,
+            project_regexp=options.project_regexp,
         )
 
         for embargo in options.embargo:
