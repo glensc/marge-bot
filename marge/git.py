@@ -86,7 +86,8 @@ class Repo(namedtuple('Repo', 'remote_url local_path ssh_key_file')):
             self.git('checkout', '-B', branch, 'origin/' + branch, '--')
 
         try:
-            self.git('rebase', 'origin/' + new_base)
+            # -i and GIT_SEQUENCE_EDITOR are there to automatically fold !fixup and !squash commits,
+            self.git('rebase', '-i', 'origin/' + new_base, add_to_env={'GIT_SEQUENCE_EDITOR': 'true'})
         except GitError:
             log.warning('rebase failed, doing an --abort')
             self.git('rebase', '--abort')
@@ -122,10 +123,9 @@ class Repo(namedtuple('Repo', 'remote_url local_path ssh_key_file')):
     def get_remote_url(self, name):
         return self.git('config', '--get', 'remote.{}.url'.format(name)).stdout.decode('utf-8').strip()
 
-    def git(self, *args, from_repo=True):
-        env = None
+    def git(self, *args, from_repo=True, add_to_env={}):
+        env = dict(os.environ, add_to_env)
         if self.ssh_key_file:
-            env = os.environ.copy()
             env['GIT_SSH_COMMAND'] = " ".join([GIT_SSH_COMMAND, "-i", self.ssh_key_file])
 
         command = ['git']
